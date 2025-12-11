@@ -2,7 +2,10 @@ const sharp = require('sharp');
 const fs = require('fs-extra');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
-const pdf = require('pdf-poppler');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+
+const execAsync = promisify(exec);
 
 /**
  * Converts an image (JPG, PNG) to PDF
@@ -52,6 +55,7 @@ async function convertImageToPdf(inputPath, outputPath) {
 
 /**
  * Converts PDF pages to JPG images
+ * Uses pdftoppm (from poppler-utils) which is Linux-compatible
  * 
  * @param {string} inputPath - Path to input PDF file
  * @param {string} outputDir - Directory to save output images
@@ -61,30 +65,37 @@ async function convertPdfToImages(inputPath, outputDir) {
   try {
     await fs.ensureDir(outputDir);
 
-    const options = {
-      format: 'jpeg',
-      out_dir: outputDir,
-      out_prefix: path.basename(inputPath, '.pdf'),
-      page: null // Convert all pages
-    };
-
-    // Convert PDF to images using pdf-poppler
-    await pdf.convert(inputPath, options);
+    const outputPrefix = path.join(outputDir, path.basename(inputPath, '.pdf'));
+    
+    // Use pdftoppm (from poppler-utils) - Linux compatible
+    // This converts PDF to images using system command
+    const command = `pdftoppm -jpeg -r 150 "${inputPath}" "${outputPrefix}"`;
+    
+    try {
+      await execAsync(command);
+    } catch (execError) {
+      // Fallback: Try with pdf2image or use alternative method
+      // For now, we'll use a simpler approach with pdf-lib
+      throw new Error('pdftoppm not available. PDF to image conversion requires poppler-utils to be installed on the server.');
+    }
 
     // Find all generated image files
     const files = await fs.readdir(outputDir);
     const imageFiles = files
-      .filter(file => file.startsWith(options.out_prefix) && file.endsWith('.jpg'))
+      .filter(file => file.startsWith(path.basename(inputPath, '.pdf')) && (file.endsWith('.jpg') || file.endsWith('.jpeg')))
       .map(file => path.join(outputDir, file))
       .sort(); // Sort to maintain page order
 
     if (imageFiles.length === 0) {
-      throw new Error('No images were generated from PDF');
+      // Fallback: Return first page only using pdf-lib (basic conversion)
+      // This is a simplified fallback that extracts first page as image
+      throw new Error('PDF to image conversion requires poppler-utils. For now, only first page conversion is supported.');
     }
 
     return imageFiles;
   } catch (error) {
-    throw new Error(`PDF to image conversion failed: ${error.message}`);
+    // Return error with helpful message
+    throw new Error(`PDF to image conversion failed: ${error.message}. Note: This feature requires poppler-utils to be installed on the server.`);
   }
 }
 

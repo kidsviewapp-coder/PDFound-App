@@ -16,7 +16,7 @@ Once you have your repository:
    - `routes/` folder
    - `utils/` folder
 
-## Step 2: Deploy on Render
+## Step 2: Deploy on Render (Node.js)
 
 1. **Sign up/Login**
    - Go to https://render.com
@@ -26,30 +26,42 @@ Once you have your repository:
 2. **Create New Web Service**
    - Click "New" → "Web Service"
    - Connect your GitHub account (if not connected)
-   - Select your repository
+   - Select your repository: `document-converter-backend`
 
-3. **Configure Service**
+3. **Configure Service (Node.js)**
    - **Name:** `document-converter` (or any name)
    - **Region:** Choose closest to you
-   - **Branch:** `main` (or your default branch)
-   - **Root Directory:** `backend` (if repo root is project root)
-   - **Environment:** `Node`
+   - **Branch:** `main`
+   - **Root Directory:** 
+     - **If your GitHub repo has files at root:** Leave **EMPTY** (blank)
+     - **If your GitHub repo has files in `backend/` folder:** Set to `backend`
+     - ⚠️ **Check your GitHub repo structure first!**
+   - **Environment:** Select **`Node`** (NOT Docker)
    - **Build Command:** `npm install`
    - **Start Command:** `node server.js`
 
-4. **Advanced Settings (Optional)**
-   - Click "Advanced"
-   - Add Environment Variables:
-     ```
-     PORT=3000
-     UPLOAD_DIR=./uploads
-     OUTPUT_DIR=./outputs
-     MAX_FILE_SIZE_MB=100
-     ```
+4. **Advanced Settings (Important!)**
+   - Click "Advanced" section to expand
+   - **Health Check Path:** Change from `/healthz` to `/health` ⚠️ IMPORTANT!
+     - Your server uses `/health` endpoint
+     - This ensures Render knows your service is healthy
+   - **Environment Variables (Optional):** Click "+ Add Environment Variable"
+     - Add these if you want to customize (optional):
+       ```
+       PORT=3000
+       UPLOAD_DIR=./uploads
+       OUTPUT_DIR=./outputs
+       MAX_FILE_SIZE_MB=100
+       ```
+     - **Note:** These are optional - your server has defaults
+   - **Auto-Deploy:** Keep "On Commit" ✅ Good
+     - This auto-deploys when you push to GitHub
 
 5. **Deploy**
-   - Click "Create Web Service"
+   - Scroll to bottom
+   - Click **"Deploy Web Service"** button ✅
    - Render will build and deploy (takes 5-10 minutes)
+   - You'll see build logs in real-time
 
 6. **Get Your URL**
    - After deployment, you'll see your URL
@@ -58,13 +70,22 @@ Once you have your repository:
 
 ## Step 3: Test Your Deployment
 
-1. Open browser
-2. Go to: `https://your-app-name.onrender.com/health`
-3. Should see: `{"status":"ok","timestamp":"..."}`
+1. Wait for deployment to complete (5-10 minutes)
+2. You'll see "Live" status when ready
+3. Copy your URL (e.g., `https://document-converter.onrender.com`)
+4. Open browser and test: `https://your-url.onrender.com/health`
+5. Should see: `{"status":"ok","timestamp":"..."}`
 
 ## Step 4: Update Android App
 
-Same as Railway - update `ApiConfig.kt` with your Render URL.
+1. Open: `android/app/src/main/java/com/documentconverter/app/data/api/ApiConfig.kt`
+2. Change:
+   ```kotlin
+   const val BASE_URL = "https://your-service-name.onrender.com"
+   ```
+   (Use YOUR actual Render URL)
+3. Build and install app on your phone
+4. Test!
 
 ## Notes
 
@@ -79,10 +100,19 @@ Same as Railway - update `ApiConfig.kt` with your Render URL.
 
 ## Troubleshooting
 
+**"Root directory 'backend' does not exist" Error:**
+- **Problem:** Repository structure doesn't match Root Directory setting
+- **Fix:** 
+  1. Check your GitHub repo structure
+  2. If files are at root → Clear Root Directory (make it empty)
+  3. If files are in `backend/` folder → Set Root Directory to `backend`
+  4. See `RENDER_FIX_ROOT_DIRECTORY.md` for detailed fix
+
 **Build fails:**
 - Check build logs in Render dashboard
 - Verify `package.json` exists
 - Check Node.js version
+- Verify Root Directory matches your repo structure
 
 **Service won't start:**
 - Check logs for errors
